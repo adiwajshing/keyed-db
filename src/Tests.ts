@@ -75,10 +75,17 @@ describe ('KeyedDB Test', () => {
         let prevChats = db.paginated (null, 25)
         while (prevChats.length > 0) {
             const cursor = (phoneCallKey (prevChats[prevChats.length-2])+phoneCallKey (prevChats[prevChats.length-1]))/2
-            const newChats = db.paginated (cursor, 26)
+            
+            const newChats = db.paginated (cursor, 25)
             assert.deepEqual (newChats[0], prevChats[prevChats.length-1])
 
-            prevChats = newChats.slice(1)
+            const newChats2 = db.paginatedByValue (newChats[0], 25)
+            if (newChats2.length > 0) {
+                
+                assert.ok ( phoneCallKey(newChats2[0]) > phoneCallKey(prevChats[prevChats.length-1]))
+            }
+            
+            prevChats = newChats2
         }
     })
 })

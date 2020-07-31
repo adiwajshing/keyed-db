@@ -63,14 +63,13 @@ export default class KeyedDB<T> {
   paginated(cursor: number | null, limit: number) {
     if (!cursor) return this.array.slice(0, limit)
 
-    const index = binarySearch (this.array, v => cursor-this.key(v))
-    if (index < 0) return this.array.slice (0, limit)
-    else if (index >= this.array.length) return []
-
-    let chats = this.array.slice (index, index+limit)
-    if (this.key(chats[0]) === cursor) chats = chats.slice (1)
+    let index = binarySearch (this.array, v => cursor-this.key(v))
     
-    return chats
+    if (index < 0) return this.array.slice (0, limit)
+    if (this.key(this.array[index]) === cursor) index += 1
+    if (index >= this.array.length) return []
+
+    return this.array.slice (index, index+limit)
   }
   private firstIndex (value: T) {
     return binarySearch (this.array, v => this.key(value)-this.key(v))
