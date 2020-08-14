@@ -57,6 +57,16 @@ export default class KeyedDB<T> {
     update (value)
     this.insert (value)
   }
+  filter (predicate: (value: T, index: number) => boolean) {
+    const db = new KeyedDB (this.key, this.idGetter)
+    db.array = this.array.filter ((value, index) => {
+      if (predicate(value, index)) {
+        db.dict[ this.idGetter (value) ] = value
+        return true
+      }
+    })
+    return db
+  }
   paginatedByValue(value: T | null, limit: number) {
     return this.paginated (value && this.key(value), limit)
   }
