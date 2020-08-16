@@ -26,7 +26,7 @@ export default class KeyedDB<T> {
       if (index >= this.array.length) this.array.push (value)
       else if (index < 0) this.array.unshift (value)
       else if (this.key(value) !== this.key(this.array[index])) this.array.splice (index, 0, value)
-      else throw new Error(`duplicate key: ${this.key(value)}, values: ${JSON.stringify(value)}, ${JSON.stringify(this.array[index])}`)
+      else throw new Error(`duplicate key: ${this.key(value)}, of inserting: ${this.idGetter(value)}, present: ${this.idGetter(this.array[index])}`)
     
     } else {
       this.array.push (value)
