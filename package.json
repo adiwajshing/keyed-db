@@ -10,7 +10,7 @@
     "key"
   ],
   "scripts": {
-    "prepare": "npm run build",
+    "prepack": "npm run build",
     "test": "mocha --timeout 60000 -r ts-node/register src/Tests.ts",
     "build": "tsc"
   },
