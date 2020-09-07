@@ -68,24 +68,40 @@ describe ('KeyedDB Test', () => {
         
         assert.equal (db.all()[0].callStart, 1000)
     })
-    it ('should paginate correctly', () => {
+    const paginationTest = predicate => {
+        let content = data
+
         const db = new KeyedDB (phoneCallKey)
-        data.forEach (v => db.insert(v))
+        content.forEach (v => db.insert(v))
+
+        if (predicate) content = data.filter (predicate)
+
+        let totalChats = []
+        let prevChats = db.paginated (null, 25, predicate)
         
-        let prevChats = db.paginated (null, 25)
         while (prevChats.length > 0) {
+            totalChats.push (...prevChats)
             const cursor = (phoneCallKey (prevChats[prevChats.length-2])+phoneCallKey (prevChats[prevChats.length-1]))/2
             
-            const newChats = db.paginated (cursor, 25)
+            const newChats = db.paginated (cursor, 25, predicate)
             assert.deepEqual (newChats[0], prevChats[prevChats.length-1])
 
-            const newChats2 = db.paginatedByValue (newChats[0], 25)
+            const newChats2 = db.paginatedByValue (newChats[0], 25, predicate)
             if (newChats2.length > 0) {
-                
                 assert.ok ( phoneCallKey(newChats2[0]) > phoneCallKey(prevChats[prevChats.length-1]))
             }
-            
             prevChats = newChats2
         }
+        assert.equal (totalChats.length, content.length)
+        let sorted = content.sort ((a, b) => phoneCallKey(a) - phoneCallKey(b))
+
+        for (let i in totalChats) {
+            assert.deepEqual (totalChats[i], sorted[i], "failed at index " + i)
+        }
+    }
+    it ('should paginate correctly', () => {
+        paginationTest (null)
+        paginationTest (call => call.callStart > 15000)
+        paginationTest (call => call.callStart < 17000)
     })
 })

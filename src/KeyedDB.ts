@@ -67,19 +67,30 @@ export default class KeyedDB<T> {
     })
     return db
   }
-  paginatedByValue(value: T | null, limit: number) {
-    return this.paginated (value && this.key(value), limit)
+  paginatedByValue(value: T | null, limit: number, predicate?: (value: T, index: number) => boolean) {
+    return this.paginated (value && this.key(value), limit, predicate)
   }
-  paginated(cursor: number | null, limit: number) {
-    if (!cursor) return this.array.slice(0, limit)
-
-    let index = binarySearch (this.array, v => cursor-this.key(v))
+  paginated(cursor: number | null, limit: number, predicate?: (value: T, index: number) => boolean) {
+    let index = 0
+    if (cursor) {
+      index = binarySearch (this.array, v => cursor-this.key(v))
     
-    if (index < 0) return this.array.slice (0, limit)
-    if (this.key(this.array[index]) === cursor) index += 1
-    if (index >= this.array.length) return []
-
-    return this.array.slice (index, index+limit)
+      if (index < 0) index = 0
+      if (this.key(this.array[index]) === cursor) index += 1
+    }
+    return this.filtered (index, limit, predicate)
+  }
+  private filtered (start: number, count: number, predicate?: (value: T, index: number) => boolean) {
+    if (predicate) {
+      let arr: T[] = []
+      for (let item of this.array.slice (start)) {
+        predicate (item, start+arr.length) && arr.push (item)
+        if (arr.length >= count) break
+      }
+      return arr
+    } else {
+      return this.array.slice (start, start+count)
+    }
   }
   private firstIndex (value: T) {
     return binarySearch (this.array, v => this.key(value)-this.key(v))
