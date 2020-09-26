@@ -36,7 +36,12 @@ export default class KeyedDB<T> {
     }  
     this.dict[this.idGetter(value)] = value
   }
-
+  slice (start: number, end: number) {
+    const db = new KeyedDB (this.key, this.idGetter)
+    db.array = this.array.slice (start, end)
+    db.array.forEach (item => db.dict[ this.idGetter(item) ] = item)
+    return db
+  }
   delete(value: T) {
     const index = this.firstIndex (value)
     if (index < 0 || index >= this.array.length || this.key(value) !== this.key(this.array[index])) {

@@ -1,6 +1,6 @@
 {
   "name": "@adiwajshing/keyed-db",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Lightweight library to store an in-memory DB",
   "homepage": "https://github.com/adiwajshing/keyed-db",
   "main": "lib/KeyedDB.js",
