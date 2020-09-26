@@ -50,6 +50,7 @@ for (let i = 0; i < 1000;i++) {
 }
 console.log (db.all()) // return sorted array
 console.log (db.paginated(null, 20)) // return first 20 chats
+console.log (db.paginated(null, 20, null, 'before')) // return last 20 chats
 console.log (db.paginated(null, 20, chat => chat.chatID.includes('something'))) // return first 20 chats where the chatID contains 'something'
 
 const someDate = new Date().getTime()

@@ -1,3 +1,4 @@
+type PaginationMode = 'before' | 'after'
 export default class KeyedDB<T> {
   private array: Array<T>
   private dict: { [key: string]: T }
@@ -16,7 +17,9 @@ export default class KeyedDB<T> {
     this.dict = {}
     this.array = []
   }
-
+  get length () {
+    return this.all().length
+  }
   insert(value: T) {
     if (!value) throw new Error ('undefined value')
 
@@ -67,30 +70,54 @@ export default class KeyedDB<T> {
     })
     return db
   }
-  paginatedByValue(value: T | null, limit: number, predicate?: (value: T, index: number) => boolean) {
-    return this.paginated (value && this.key(value), limit, predicate)
+  /**
+   * Get the values of the data in a paginated manner
+   * @param value the value itself beyond which the content is to be retreived
+   * @param limit max number of items to retreive
+   * @param predicate optional filter
+   * @param mode whether to get the content `before` the cursor or `after` the cursor; default=`after`
+   */
+  paginatedByValue(value: T | null, limit: number, predicate?: (value: T, index: number) => boolean, mode: PaginationMode = 'after') {
+    return this.paginated (value && this.key(value), limit, predicate, mode)
   }
-  paginated(cursor: number | null, limit: number, predicate?: (value: T, index: number) => boolean) {
-    let index = 0
+  /**
+   * Get the values of the data in a paginated manner
+   * @param value the cursor beyond which the content is to be retreived
+   * @param limit max number of items to retreive
+   * @param predicate optional filter
+   * @param mode whether to get the content `before` the cursor or `after` the cursor; default=`after`
+   */
+  paginated(cursor: number | null, limit: number, predicate?: (value: T, index: number) => boolean, mode: PaginationMode = 'after') {
+    let index = mode === 'after' ? 0 : this.array.length
     if (cursor) {
       index = binarySearch (this.array, v => cursor-this.key(v))
     
       if (index < 0) index = 0
-      if (this.key(this.array[index]) === cursor) index += 1
+      if (this.key(this.array[index]) === cursor) index += (mode === 'after' ? 1 : 0)
     }
-    return this.filtered (index, limit, predicate)
+    return this.filtered (index, limit, mode, predicate)
   }
-  private filtered (start: number, count: number, predicate?: (value: T, index: number) => boolean) {
-    if (predicate) {
-      let arr: T[] = []
-      for (let item of this.array.slice (start)) {
-        predicate (item, start+arr.length) && arr.push (item)
-        if (arr.length >= count) break
-      }
-      return arr
-    } else {
-      return this.array.slice (start, start+count)
+  private filtered (start: number, count: number, mode: PaginationMode, predicate?: (value: T, index: number) => boolean) {
+    let arr: T[]
+    if (mode === 'after') {
+      if (predicate) {
+        arr = []
+        for (let item of this.array.slice (start)) {
+          predicate (item, start+arr.length) && arr.push (item)
+          if (arr.length >= count) break
+        }
+      } else arr = this.array.slice (start, start+count)
+    } else if (mode === 'before') {
+      if (predicate) {
+        arr = []
+        for (let i = start-1; i >= 0; i--) {
+          let item = this.array[i]
+          predicate (item, start+arr.length) && arr.unshift (item)
+          if (arr.length >= count) break
+        }
+      } else arr = this.array.slice ( Math.max(start-count, 0), start)
     }
+    return arr
   }
   private firstIndex (value: T) {
     return binarySearch (this.array, v => this.key(value)-this.key(v))

@@ -45,7 +45,7 @@ describe ('Binary Search Tests', () => {
 describe ('KeyedDB Test', () => {
     let data: ActivePhoneCall[]
     before (() => {
-        data = [...Array(2500)]
+        data = [...Array(4132)]
                 .map ((_, i) => ({callStart: (Math.random()*10000 + 10000), from: `Jeff ${i}`}))
         
     })
@@ -99,8 +99,44 @@ describe ('KeyedDB Test', () => {
             assert.deepEqual (totalChats[i], sorted[i], "failed at index " + i)
         }
     }
-    it ('should paginate correctly', () => {
+    const paginationTestBefore = predicate => {
+        let content = data
+
+        const db = new KeyedDB (phoneCallKey)
+        content.forEach (v => db.insert(v))
+
+        if (predicate) content = data.filter (predicate)
+
+        let totalChats = []
+        let prevChats = db.paginatedByValue (null, 25, predicate, 'before')
+        
+        while (prevChats.length > 0) {
+            totalChats.unshift (...prevChats)
+            const cursor = (phoneCallKey (prevChats[0])+phoneCallKey (prevChats[1]))/2
+            
+            const newChats = db.paginated (cursor, 25, predicate, 'before')
+            assert.deepEqual (newChats[newChats.length-1], prevChats[0])
+
+            const newChats2 = db.paginatedByValue (newChats[newChats.length-1], 25, predicate, 'before')
+            if (newChats2.length > 0) {
+                assert.ok ( phoneCallKey(newChats2[0]) < phoneCallKey(prevChats[0]))
+            }
+            prevChats = newChats2
+        }
+        assert.equal (totalChats.length, content.length)
+        let sorted = content.sort ((a, b) => phoneCallKey(a) - phoneCallKey(b))
+
+        for (let i in totalChats) {
+            assert.deepEqual (totalChats[i], sorted[i], "failed at index " + i)
+        }
+    }
+    it ('should paginate \'after\' correctly', () => {
         paginationTest (null)
+        paginationTest (call => call.callStart > 15000)
+        paginationTest (call => call.callStart < 17000)
+    })
+    it ('should paginate \'before\' correctly', () => {
+        paginationTestBefore (null)
         paginationTest (call => call.callStart > 15000)
         paginationTest (call => call.callStart < 17000)
     })
