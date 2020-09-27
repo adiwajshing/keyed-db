@@ -20,6 +20,9 @@ export default class KeyedDB<T> {
   get length () {
     return this.all().length
   }
+  toJSON () {
+    return this.array
+  }
   insert(value: T) {
     if (!value) throw new Error ('undefined value')
 

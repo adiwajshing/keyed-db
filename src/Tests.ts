@@ -140,4 +140,22 @@ describe ('KeyedDB Test', () => {
         paginationTest (call => call.callStart > 15000)
         paginationTest (call => call.callStart < 17000)
     })
+
+    it ('should serialize correctly', () => {
+        const db = new KeyedDB (phoneCallKey)
+        data.forEach (v => db.insert(v))
+
+        assert.equal (
+            JSON.stringify(db),
+            JSON.stringify(db['array'])
+        )
+        assert.equal (
+            JSON.stringify(
+                { db }
+            ),
+            JSON.stringify(
+                { db: db['array'] }
+            )
+        )
+    })
 })
