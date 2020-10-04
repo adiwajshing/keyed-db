@@ -1,9 +1,11 @@
 type PaginationMode = 'before' | 'after'
-export default class KeyedDB<T> {
+export type Comparable<T, K> = { key: (v: T) => K, compare: (a: K, b: K) => number }
+
+export default class KeyedDB<T, K> {
   private array: Array<T>
   private dict: { [key: string]: T }
   /* Order values */
-  private key: (v: T) => number
+  private key: Comparable<T, K>
   /* Identify values */
   private idGetter: (v: T) => string
   /**
@@ -11,9 +13,15 @@ export default class KeyedDB<T> {
    * @param key Return the unique key used to sort items
    * @param id The unique ID for the items
    */
-  constructor(key: (v: T) => number, id?: (v: T) => string) {
-    this.key = key
-    this.idGetter = id || (v => key(v).toString())
+  constructor(key: ((v: T) => number) | Comparable<T, K>, id?: (v: T) => string) {
+    if (typeof key === 'function') {
+      this.key = {
+        key,
+        compare: (a, b) => a-b
+      } as any
+    } else this.key = key
+    
+    this.idGetter = id || (v => this.key.key(v).toString())
     this.dict = {}
     this.array = []
   }
@@ -31,8 +39,8 @@ export default class KeyedDB<T> {
       
       if (index >= this.array.length) this.array.push (value)
       else if (index < 0) this.array.unshift (value)
-      else if (this.key(value) !== this.key(this.array[index])) this.array.splice (index, 0, value)
-      else throw new Error(`duplicate key: ${this.key(value)}, of inserting: ${this.idGetter(value)}, present: ${this.idGetter(this.array[index])}`)
+      else if (this.key.key(value) !== this.key.key(this.array[index])) this.array.splice (index, 0, value)
+      else throw new Error(`duplicate key: ${this.key.key(value)}, of inserting: ${this.idGetter(value)}, present: ${this.idGetter(this.array[index])}`)
     
     } else {
       this.array.push (value)
@@ -47,7 +55,7 @@ export default class KeyedDB<T> {
   }
   delete(value: T) {
     const index = this.firstIndex (value)
-    if (index < 0 || index >= this.array.length || this.key(value) !== this.key(this.array[index])) {
+    if (index < 0 || index >= this.array.length || this.key.key(value) !== this.key.key(this.array[index])) {
         return null
     }
     delete this.dict[this.idGetter(value)]
@@ -64,6 +72,8 @@ export default class KeyedDB<T> {
     return this.array
   }
   updateKey(value: T, update: (value: T) => void) {
+    var v = 121
+    
     this.delete (value)
     update (value)
     this.insert (value)
@@ -86,7 +96,7 @@ export default class KeyedDB<T> {
    * @param mode whether to get the content `before` the cursor or `after` the cursor; default=`after`
    */
   paginatedByValue(value: T | null, limit: number, predicate?: (value: T, index: number) => boolean, mode: PaginationMode = 'after') {
-    return this.paginated (value && this.key(value), limit, predicate, mode)
+    return this.paginated (value && this.key.key(value), limit, predicate, mode)
   }
   /**
    * Get the values of the data in a paginated manner
@@ -95,13 +105,13 @@ export default class KeyedDB<T> {
    * @param predicate optional filter
    * @param mode whether to get the content `before` the cursor or `after` the cursor; default=`after`
    */
-  paginated(cursor: number | null, limit: number, predicate?: (value: T, index: number) => boolean, mode: PaginationMode = 'after') {
+  paginated(cursor: K | null, limit: number, predicate?: (value: T, index: number) => boolean, mode: PaginationMode = 'after') {
     let index = mode === 'after' ? 0 : this.array.length
-    if (cursor) {
-      index = binarySearch (this.array, v => cursor-this.key(v))
+    if (cursor !== null && typeof cursor !== 'undefined') {
+      index = binarySearch (this.array, v => this.key.compare(cursor, this.key.key(v)))
     
       if (index < 0) index = 0
-      if (this.key(this.array[index]) === cursor) index += (mode === 'after' ? 1 : 0)
+      if (this.key.key(this.array[index]) === cursor) index += (mode === 'after' ? 1 : 0)
     }
     return this.filtered (index, limit, mode, predicate)
   }
@@ -128,15 +138,16 @@ export default class KeyedDB<T> {
     return arr
   }
   private firstIndex (value: T) {
-    return binarySearch (this.array, v => this.key(value)-this.key(v))
+    return binarySearch (this.array, v => this.key.compare(this.key.key(value), this.key.key(v)))
   }
 }
+
 /**
  * 
  * @param array the array to search in
  * @param predicate return a value of < 0, if the item you're looking for should come before, 0 if it is the item you're looking for
  */
-export function binarySearch<T>(array: T[], predicate: (T) => number) {
+export function binarySearch<T>(array: T[], predicate: (t: T) => number) {
     let low = 0
     let high = array.length
 

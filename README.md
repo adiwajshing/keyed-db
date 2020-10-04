@@ -16,9 +16,17 @@ All done using Binary Search. Based off my swift code for [Queenfisher](https://
 ``` ts
 
 db = new KeyedDB<T> (t => t.uniqueNumberKeyProperty, t => t.optionalUniqueIDProperty)
+// compare with a custom function
+db = new KeyedDB<T> ({  
+    key: t => t.someProperty,
+    compare: (t1, t2) => someComputation(t1, t2) // return -1 if t1 < t2, 0 if t1=t2 & 1 if t1 > t2
+}, t => t.optionalUniqueIDProperty)
+
 db.insert (value) // insert value in DB
 db.delete (value) // delete value
-db.updateKey (value, value => value.uniqueKeyProperty = newValue) // update the key of a value
+// update the key of a value, 
+// will automatically place object after key change
+db.updateKey (value, value => value.uniqueKeyProperty = newValue) 
 db.paginated (someCursor, 20) // get X results after the given cursor (null for the first X results)
 
 ```
@@ -48,7 +56,7 @@ for (let i = 0; i < 1000;i++) {
         }
     )
 }
-console.log (db.all()) // return sorted array
+console.log (db.all()) // return internal sorted array
 console.log (db.paginated(null, 20)) // return first 20 chats
 console.log (db.paginated(null, 20, null, 'before')) // return last 20 chats
 console.log (db.paginated(null, 20, chat => chat.chatID.includes('something'))) // return first 20 chats where the chatID contains 'something'

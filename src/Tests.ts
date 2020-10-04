@@ -1,4 +1,4 @@
-import KeyedDB, { binarySearch } from './KeyedDB'
+import KeyedDB, { binarySearch, Comparable } from './KeyedDB'
 import assert from 'assert'
 
 function hashCode(s: string) {
@@ -11,7 +11,13 @@ type ActivePhoneCall = {
     from: string
 }
 const phoneCallKey = (p: ActivePhoneCall) => p.callStart*1000 + (hashCode(p.from) % 1000)
-
+const phoneCallKeyStr: Comparable<ActivePhoneCall, string> = {
+    key: (p: ActivePhoneCall) => p.callStart.toString() + p.from,
+    compare: (a, b) => a.localeCompare (b)
+}
+const doSorted = (list: ActivePhoneCall[], key) => list.sort ((a, b) => (
+    key.key ? key.compare(key.key(a), key.key(b)) : (key(a) - key(b))
+))
 describe ('Binary Search Tests', () => {
     it ('should work with one item', () => {
         const array = [100]
@@ -49,15 +55,18 @@ describe ('KeyedDB Test', () => {
                 .map ((_, i) => ({callStart: (Math.random()*10000 + 10000), from: `Jeff ${i}`}))
         
     })
-    it ('should be a correctly sorted DB', () => {
-        const db = new KeyedDB (phoneCallKey)
+    const correctlySortTest = key => {
+        const db = new KeyedDB (key)
         
         data.forEach (v => db.insert(v))
-        const sorted = data.sort ((a, b) => phoneCallKey(a) - phoneCallKey(b))
-
-        for (let i in sorted) {
+        const sorted = doSorted([...data], key)
+        for (let i = 0; i < sorted.length;i++) {
             assert.equal (db.all()[i], sorted[i])
         }
+    }
+    it ('should be a correctly sorted DB', () => {
+        correctlySortTest (phoneCallKey)
+        correctlySortTest (phoneCallKeyStr)
     })
     it ('should reinsert correctly in the DB', () => {
         const db = new KeyedDB (phoneCallKey)
@@ -68,7 +77,7 @@ describe ('KeyedDB Test', () => {
         
         assert.equal (db.all()[0].callStart, 1000)
     })
-    const paginationTest = predicate => {
+    const paginationTest = (predicate) => {
         let content = data
 
         const db = new KeyedDB (phoneCallKey)
@@ -130,10 +139,42 @@ describe ('KeyedDB Test', () => {
             assert.deepEqual (totalChats[i], sorted[i], "failed at index " + i)
         }
     }
+
+    const paginationTestStr = (predicate) => {
+        let content = data
+
+        const db = new KeyedDB (phoneCallKeyStr)
+        content.forEach (v => db.insert(v))
+
+        if (predicate) content = data.filter (predicate)
+
+        let totalChats = []
+        let prevChats = db.paginated (null, 25, predicate)
+        
+        while (prevChats.length > 0) {
+            totalChats.push (...prevChats)
+            const newChats2 = db.paginatedByValue (prevChats[prevChats.length-1], 25, predicate)
+            if (newChats2.length > 0) {
+                assert.ok ( phoneCallKeyStr.compare(phoneCallKeyStr.key(newChats2[0]), phoneCallKeyStr.key(prevChats[prevChats.length-1])) )
+            }
+            prevChats = newChats2
+        }
+        assert.equal (totalChats.length, content.length)
+        let sorted = doSorted([...content], phoneCallKeyStr)
+
+        for (let i in totalChats) {
+            assert.deepEqual (totalChats[i], sorted[i], "failed at index " + i)
+        }
+    }
     it ('should paginate \'after\' correctly', () => {
         paginationTest (null)
         paginationTest (call => call.callStart > 15000)
         paginationTest (call => call.callStart < 17000)
+    })
+    it ('should paginate \'after\' correctly with str', () => {
+        paginationTestStr (null)
+        paginationTestStr (call => call.callStart > 15000)
+        paginationTestStr (call => call.callStart < 17000)
     })
     it ('should paginate \'before\' correctly', () => {
         paginationTestBefore (null)
