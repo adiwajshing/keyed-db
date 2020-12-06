@@ -1,7 +1,7 @@
-type PaginationMode = 'before' | 'after'
-export type Comparable<T, K> = { key: (v: T) => K, compare: (a: K, b: K) => number }
+import binarySearch from "./BinarySearch"
+import { IKeyedDB, Identifiable, Comparable, PaginationMode } from "./Types"
 
-export default class KeyedDB<T, K> {
+export default class KeyedDB<T, K> implements IKeyedDB<T, K> {
   private array: Array<T>
   private dict: { [key: string]: T }
   /* Order values */
@@ -9,43 +9,29 @@ export default class KeyedDB<T, K> {
   /* Identify values */
   private idGetter: (v: T) => string
   /**
-   * 
    * @param key Return the unique key used to sort items
    * @param id The unique ID for the items
    */
-  constructor(key: ((v: T) => number) | Comparable<T, K>, id?: (v: T) => string) {
-    if (typeof key === 'function') {
-      this.key = {
-        key,
-        compare: (a, b) => a-b
-      } as any
-    } else this.key = key
-    
+  constructor (key: Comparable<T, K>, id?: Identifiable<T>) {
+    this.key = key
     this.idGetter = id || (v => this.key.key(v).toString())
     this.dict = {}
     this.array = []
   }
   get length () {
-    return this.all().length
+    return this.array.length
+  }
+  get first () {
+    return this.array[0]
+  }
+  get last () {
+    return this.array[this.array.length-1]
   }
   toJSON () {
     return this.array
   }
-  insert(value: T) {
-    if (!value) throw new Error ('undefined value')
-
-    if (this.array.length > 0) {
-      const index = this.firstIndex (value)
-      
-      if (index >= this.array.length) this.array.push (value)
-      else if (index < 0) this.array.unshift (value)
-      else if (this.key.key(value) !== this.key.key(this.array[index])) this.array.splice (index, 0, value)
-      else throw new Error(`duplicate key: ${this.key.key(value)}, of inserting: ${this.idGetter(value)}, present: ${this.idGetter(this.array[index])}`)
-    
-    } else {
-      this.array.push (value)
-    }  
-    this.dict[this.idGetter(value)] = value
+  insert(...values: T[]) {
+    values.forEach(v => this._insertSingle(v))
   }
   slice (start: number, end: number) {
     const db = new KeyedDB (this.key, this.idGetter)
@@ -71,9 +57,7 @@ export default class KeyedDB<T, K> {
   all() {
     return this.array
   }
-  updateKey(value: T, update: (value: T) => void) {
-    var v = 121
-    
+  updateKey(value: T, update: (value: T) => void) {    
     this.delete (value)
     update (value)
     this.insert (value)
@@ -115,6 +99,22 @@ export default class KeyedDB<T, K> {
     }
     return this.filtered (index, limit, mode, predicate)
   }
+  private _insertSingle(value: T) {
+    if (!value) throw new Error ('undefined value')
+
+    if (this.array.length > 0) {
+      const index = this.firstIndex (value)
+      
+      if (index >= this.array.length) this.array.push (value)
+      else if (index < 0) this.array.unshift (value)
+      else if (this.key.key(value) !== this.key.key(this.array[index])) this.array.splice (index, 0, value)
+      else throw new Error(`duplicate key: ${this.key.key(value)}, of inserting: ${this.idGetter(value)}, present: ${this.idGetter(this.array[index])}`)
+    
+    } else {
+      this.array.push (value)
+    }  
+    this.dict[this.idGetter(value)] = value
+  }
   private filtered (start: number, count: number, mode: PaginationMode, predicate?: (value: T, index: number) => boolean) {
     let arr: T[]
     if (mode === 'after') {
@@ -140,33 +140,4 @@ export default class KeyedDB<T, K> {
   private firstIndex (value: T) {
     return binarySearch (this.array, v => this.key.compare(this.key.key(value), this.key.key(v)))
   }
-}
-
-/**
- * 
- * @param array the array to search in
- * @param predicate return a value of < 0, if the item you're looking for should come before, 0 if it is the item you're looking for
- */
-export function binarySearch<T>(array: T[], predicate: (t: T) => number) {
-    let low = 0
-    let high = array.length
-
-    if (array.length === 0) return low
-    
-    if (predicate(array[low]) < 0) return low-1
-    else if (predicate(array[low]) === 0) return low
-
-    const maxPred = predicate(array[high-1])
-    if (maxPred > 0) return high
-    else if (maxPred === 0) return high-1
-    
-    while (low !== high) {
-        const mid = low + Math.floor((high-low)/2)
-        const pred = predicate (array[mid])
-        
-        if (pred < 0) high = mid
-        else if (pred > 0) low = mid+1
-        else return mid
-    }
-    return low 
 }

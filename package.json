@@ -1,6 +1,6 @@
 {
   "name": "@adiwajshing/keyed-db",
-  "version": "0.1.8",
+  "version": "0.2.0",
   "description": "Lightweight library to store an in-memory DB",
   "homepage": "https://github.com/adiwajshing/keyed-db",
   "main": "lib/KeyedDB.js",
@@ -29,6 +29,6 @@
     "assert": "^2.0.0",
     "mocha": "^8.0.1",
     "ts-node-dev": "^1.0.0-pre.61",
-    "typescript": "^3.9.7"
+    "typescript": "^4.0.0"
   }
 }
