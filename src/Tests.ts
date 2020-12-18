@@ -205,6 +205,15 @@ describe ('KeyedDB Test', () => {
         db.insertIfAbsent(content[idx])
         assert.notDeepStrictEqual(content[idx], db.first)
         assert.strictEqual(1234, db.first.info)
+
+        const [insertion0] = db.insertIfAbsent(content[idx-1])
+        assert.ok(insertion0)
+        assert.strictEqual(db.first, content[idx-1])
+        assert.deepStrictEqual(insertion0, content[idx-1])
+
+        const item = db.delete(content[idx+2])
+        const [insertion] = db.insertIfAbsent(item)
+        assert.deepStrictEqual(insertion, item)
     })
     it ('should paginate \'after\' correctly', () => {
         paginationTest (null)

@@ -72,7 +72,7 @@ export default class KeyedDB<T, K> implements IKeyedDB<T, K> {
       if (presentValue) return
       // if key is present
       const presentKey = this.firstIndex(v)
-      if (presentKey >= 0 && presentKey <= this.length) return
+      if (this.array[presentKey] && this.key.key(this.array[presentKey]) === this.key.key(v)) return
 
       this.insert(v)
       insertions.push(v)
