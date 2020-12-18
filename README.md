@@ -23,7 +23,10 @@ db = new KeyedDB<T> ({
 }, t => t.optionalUniqueIDProperty)
 
 db.insert (value) // insert value in DB
+db.upsert (value) // upserts value
+db.insertIfAbsent (value) // only inserts if not already present in DB
 db.delete (value) // delete value
+db.deleteById (value.optionalUniqueIDProperty) // delete value by referencing the ID
 // update the key of a value, 
 // will automatically place object after key change
 db.updateKey (value, value => value.uniqueKeyProperty = newValue) 

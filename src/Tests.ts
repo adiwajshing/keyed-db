@@ -13,6 +13,7 @@ function hashCode(s: string) {
 type ActivePhoneCall = {
     callStart: number
     from: string
+    info?: any
 }
 const phoneCallKey = {
     key: (p: ActivePhoneCall) => p.callStart*1000 + (hashCode(p.from) % 1000),
@@ -151,7 +152,7 @@ describe ('KeyedDB Test', () => {
         let content = data
 
         const db = new KeyedDB (phoneCallKeyStr)
-        content.forEach (v => db.insert(v))
+        db.insert(...content)
 
         if (predicate) content = data.filter (predicate)
 
@@ -173,6 +174,34 @@ describe ('KeyedDB Test', () => {
             assert.deepStrictEqual (totalChats[i], sorted[i], "failed at index " + i)
         }
     }
+    it ('should update values correctly', () => {
+        let content = doSorted([...data], phoneCallKeyStr)
+        const idx = content.length/2
+        const db = new KeyedDB (phoneCallKeyStr)
+        // insert half the values
+        db.insert(...content.slice(idx))
+        
+        // test upsert
+        content[idx] = { ...content[idx], info: 1234 }
+        db.upsert(content[idx])
+        assert.ok(db.first.info)
+        assert.deepStrictEqual(
+            db.filter(item => phoneCallKeyStr.key(item) === phoneCallKeyStr.key(content[idx])).all(),
+            [ content[idx] ]
+        )
+        db.upsert(content[0])
+        assert.deepStrictEqual(content[0], db.first)
+
+        // test delete by id
+        db.deleteById(phoneCallKeyStr.key(content[0]))
+        assert.deepStrictEqual(content[idx], db.first)
+
+        // test insert if absent
+        content[idx] = { ...content[idx], info: 55 }
+        db.insertIfAbsent(content[idx])
+        assert.notDeepStrictEqual(content[idx], db.first)
+        assert.strictEqual(1234, db.first.info)
+    })
     it ('should paginate \'after\' correctly', () => {
         paginationTest (null)
         paginationTest (call => call.callStart > 15000)
@@ -188,7 +217,7 @@ describe ('KeyedDB Test', () => {
         paginationTest (call => call.callStart > 15000)
         paginationTest (call => call.callStart < 17000)
     })
-
+    
     it ('should serialize correctly', () => {
         const db = new KeyedDB (phoneCallKey)
         data.forEach (v => db.insert(v))

@@ -30,14 +30,58 @@ export default class KeyedDB<T, K> implements IKeyedDB<T, K> {
   toJSON () {
     return this.array
   }
+  /**
+   * Inserts items into the DB in klogN time. 
+   * Where k is the number of items being inserted.
+   * @param values 
+   */
   insert(...values: T[]) {
     values.forEach(v => this._insertSingle(v))
   }
-  slice (start: number, end: number) {
-    const db = new KeyedDB (this.key, this.idGetter)
-    db.array = this.array.slice (start, end)
-    db.array.forEach (item => db.dict[ this.idGetter(item) ] = item)
-    return db
+  /**
+   * Upserts items into the DB in 2klogN time.
+   * Where k is the number of items being inserted.
+   * 
+   * If a duplicate is found, it is deleted first and then the new one is inserted
+   * @param values 
+   */
+  upsert(...values: T[]) {
+    values.forEach(v => {
+      if (!v) return
+
+      this.deleteById(this.idGetter(v), false)
+      this._insertSingle(v)
+    })
+  }
+  /**
+   * Inserts items only if they are not present in the DB
+   * @param values 
+   */
+  insertIfAbsent(...values: T[]) {
+    values.forEach(v => {
+      if (!v) return
+      
+      const presentValue = this.get( this.idGetter(v) )
+      if (presentValue) return
+      
+      const presentKey = this.firstIndex(v)
+      if (presentKey) return
+
+      this.insert(v)
+    })
+  }
+  /**
+   * Deletes an item indexed by the ID
+   * @param id 
+   * @param assertPresent 
+   */
+  deleteById(id: string, assertPresent: boolean = true) {
+    const value = this.get(id)
+    if (!value) {
+      if (assertPresent) throw new Error(`Value not found`)
+      else return
+    }
+    return this.delete(value)
   }
   delete(value: T) {
     const index = this.firstIndex (value)
@@ -47,6 +91,13 @@ export default class KeyedDB<T, K> implements IKeyedDB<T, K> {
     delete this.dict[this.idGetter(value)]
     return this.array.splice (index, 1)[0]
   }
+  slice(start?: number, end?: number) {
+    const db = new KeyedDB (this.key, this.idGetter)
+    db.array = this.array.slice (start, end)
+    db.array.forEach (item => db.dict[ this.idGetter(item) ] = item)
+    return db
+  }
+  /** Clears the DB */
   clear() {
     this.array = []
     this.dict = {}
@@ -62,7 +113,7 @@ export default class KeyedDB<T, K> implements IKeyedDB<T, K> {
     update (value)
     this.insert (value)
   }
-  filter (predicate: (value: T, index: number) => boolean) {
+  filter(predicate: (value: T, index: number) => boolean) {
     const db = new KeyedDB (this.key, this.idGetter)
     db.array = this.array.filter ((value, index) => {
       if (predicate(value, index)) {
@@ -100,7 +151,12 @@ export default class KeyedDB<T, K> implements IKeyedDB<T, K> {
     return this.filtered (index, limit, mode, predicate)
   }
   private _insertSingle(value: T) {
-    if (!value) throw new Error ('undefined value')
+    if (!value) throw new Error ('falsey value')
+
+    const valueID = this.idGetter(value)
+    if (this.get(valueID)) {
+        throw new Error('duplicate ID being inserted: ' + valueID)
+    }
 
     if (this.array.length > 0) {
       const index = this.firstIndex (value)
@@ -108,12 +164,12 @@ export default class KeyedDB<T, K> implements IKeyedDB<T, K> {
       if (index >= this.array.length) this.array.push (value)
       else if (index < 0) this.array.unshift (value)
       else if (this.key.key(value) !== this.key.key(this.array[index])) this.array.splice (index, 0, value)
-      else throw new Error(`duplicate key: ${this.key.key(value)}, of inserting: ${this.idGetter(value)}, present: ${this.idGetter(this.array[index])}`)
+      else throw new Error(`duplicate key: ${this.key.key(value)}, of inserting: ${valueID}, present: ${this.idGetter(this.array[index])}`)
     
     } else {
       this.array.push (value)
     }  
-    this.dict[this.idGetter(value)] = value
+    this.dict[valueID] = value
   }
   private filtered (start: number, count: number, mode: PaginationMode, predicate?: (value: T, index: number) => boolean) {
     let arr: T[]
