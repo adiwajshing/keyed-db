@@ -12,22 +12,22 @@ export default class KeyedDB<T, K> implements IKeyedDB<T, K> {
    * @param key Return the unique key used to sort items
    * @param id The unique ID for the items
    */
-  constructor (key: Comparable<T, K>, id?: Identifiable<T>) {
+  constructor(key: Comparable<T, K>, id?: Identifiable<T>) {
     this.key = key
     this.idGetter = id || (v => this.key.key(v).toString())
     this.dict = {}
     this.array = []
   }
-  get length () {
+  get length() {
     return this.array.length
   }
-  get first () {
+  get first() {
     return this.array[0]
   }
-  get last () {
+  get last() {
     return this.array[this.array.length-1]
   }
-  toJSON () {
+  toJSON() {
     return this.array
   }
   /**
@@ -44,31 +44,40 @@ export default class KeyedDB<T, K> implements IKeyedDB<T, K> {
    * 
    * If a duplicate is found, it is deleted first and then the new one is inserted
    * @param values 
+   * @returns list of updated values
    */
   upsert(...values: T[]) {
+    const updates: T[] = [] 
     values.forEach(v => {
       if (!v) return
 
-      this.deleteById(this.idGetter(v), false)
+      const deleted = this.deleteById(this.idGetter(v), false)
       this._insertSingle(v)
+      // add to updates
+      deleted && updates.push(v)
     })
+    return updates
   }
   /**
    * Inserts items only if they are not present in the DB
    * @param values 
+   * @returns list of all the inserted values
    */
   insertIfAbsent(...values: T[]) {
+    const insertions: T[] = []
     values.forEach(v => {
       if (!v) return
-      
+      // if ID is present
       const presentValue = this.get( this.idGetter(v) )
       if (presentValue) return
-      
+      // if key is present
       const presentKey = this.firstIndex(v)
-      if (presentKey) return
+      if (presentKey >= 0 && presentKey <= this.length) return
 
       this.insert(v)
+      insertions.push(v)
     })
+    return insertions
   }
   /**
    * Deletes an item indexed by the ID

@@ -183,13 +183,17 @@ describe ('KeyedDB Test', () => {
         
         // test upsert
         content[idx] = { ...content[idx], info: 1234 }
-        db.upsert(content[idx])
+        const [updated] = db.upsert(content[idx])
         assert.ok(db.first.info)
+        assert.deepStrictEqual(updated, db.first)
         assert.deepStrictEqual(
             db.filter(item => phoneCallKeyStr.key(item) === phoneCallKeyStr.key(content[idx])).all(),
             [ content[idx] ]
         )
-        db.upsert(content[0])
+        assert.deepStrictEqual(
+            db.upsert(content[0]),
+            []
+        )
         assert.deepStrictEqual(content[0], db.first)
 
         // test delete by id
