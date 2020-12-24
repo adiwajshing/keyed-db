@@ -3,7 +3,7 @@ import assert from 'assert'
 import { Comparable } from './Types';
 import binarySearch from './BinarySearch';
 
-const DATA_LENGTH = 10_000
+const DATA_LENGTH = 20_000
 
 function hashCode(s: string) {
     for(var i = 0, h = 0; i < s.length; i++)
@@ -79,9 +79,15 @@ describe ('KeyedDB Test', () => {
     it ('should reinsert correctly in the DB', () => {
         const db = new KeyedDB (phoneCallKey)
         data.forEach (v => db.insert(v))
-        
-        const itemIndex = Math.floor(Math.random()*db.all().length)
-        db.updateKey (db.all()[itemIndex], value => value.callStart = 1000)
+
+        for(let i = 0; i < db.length*0.7;i++) {
+            const itemIndex = Math.floor(Math.random()*db.all().length)
+            // insert again as long as it's not the lowest one we've inserted
+            db.all()[itemIndex].callStart > 1000 && assert.strictEqual(
+                db.updateKey (db.all()[itemIndex], value => value.callStart = 1000 + i),
+                2
+            )
+        }
         
         assert.strictEqual (db.first.callStart, 1000)
     })

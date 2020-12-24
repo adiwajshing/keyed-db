@@ -117,10 +117,36 @@ export default class KeyedDB<T, K> implements IKeyedDB<T, K> {
   all() {
     return this.array
   }
-  updateKey(value: T, update: (value: T) => void) {    
-    this.delete (value)
-    update (value)
-    this.insert (value)
+  /**
+   * Updates a value specified by the ID
+   * and adjusts its position in the DB after an update if required
+   * @param id 
+   * @param update 
+   */
+  update(id: string, update: (value: T) => void) {    
+    const value = this.get(id)
+    if (value) {
+      const idx = this.firstIndex(value)
+      if (idx >= 0 && idx < this.array.length && this.idGetter(this.array[idx]) === id) {
+        const oldKey = this.key.key(value)
+        update(value)
+        const newKey = this.key.key(value)
+        if (newKey !== oldKey) {
+          delete this.dict[id]
+          this.array.splice(idx, 1)
+
+          this._insertSingle(value)
+          return 2
+        }
+        return 1
+      }
+    }
+  }
+  /**
+   * @deprecated see `update`
+   */
+  updateKey(value: T, update: (value: T) => void) {
+    return this.update(this.idGetter(value), update)
   }
   filter(predicate: (value: T, index: number) => boolean) {
     const db = new KeyedDB (this.key, this.idGetter)
@@ -203,6 +229,7 @@ export default class KeyedDB<T, K> implements IKeyedDB<T, K> {
     return arr
   }
   private firstIndex (value: T) {
-    return binarySearch (this.array, v => this.key.compare(this.key.key(value), this.key.key(v)))
+    const valueKey = this.key.key(value)
+    return binarySearch (this.array, v => this.key.compare(valueKey, this.key.key(v)))
   }
 }
