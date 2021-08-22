@@ -232,4 +232,8 @@ export default class KeyedDB<T, K> implements IKeyedDB<T, K> {
     const valueKey = this.key.key(value)
     return binarySearch (this.array, v => this.key.compare(valueKey, this.key.key(v)))
   }
+
+  *[Symbol.iterator](): Iterator<T> {
+    for (let item of this.array) yield item
+  }
 }

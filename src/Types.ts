@@ -8,7 +8,7 @@ export type Comparable<ObjectType, KeyType> = {
 /** Identifier function for object */
 export type Identifiable<T> = (v: T) => string
 
-export interface IKeyedDB<T, K> {
+export interface IKeyedDB<T, K> extends Iterable<T> {
 
     length: number
     first: T
