@@ -254,4 +254,14 @@ describe ('KeyedDB Test', () => {
             )
         )
     })
+    it('should iterate', () => {
+        const db = new KeyedDB (phoneCallKey)
+        data.forEach (v => db.insert(v))
+
+        const result = []
+        for (let item of db) {
+            result.push(item)
+        }
+        assert.deepStrictEqual (result, data)
+    })
 })
